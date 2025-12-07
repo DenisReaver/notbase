@@ -26,7 +26,7 @@ export default function Home() {
 function HomeContent() {
   const { address, isConnected } = useAccount();
   const { connect, connectors, isPending } = useConnect();
-  const [clicks, setClicks] = useState<bigint>(0n);
+  const [clicks, setClicks] = useState<bigint>(BigInt(0));
   const [clicking, setClicking] = useState(false);
 
   const metamask = connectors.find(c => c.id === "injected");
@@ -54,7 +54,7 @@ function HomeContent() {
       functionName: "click",
       chainId: base.id,
     });
-    setClicks(prev => prev + 1n);
+    setClicks(prev => prev + BigInt(1));
     setTimeout(() => setClicking(false), 800);
   };
 
