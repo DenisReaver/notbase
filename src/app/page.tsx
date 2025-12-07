@@ -1,65 +1,100 @@
-import Image from "next/image";
+"use client";
+
+import { useAccount, useConnect, useReadContract, useWriteContract } from "wagmi";
+import { base } from "wagmi/chains";
+import { parseAbi } from "viem";
+import { useEffect, useState } from "react";
+import { Providers } from "./providers";
+import { injected } from "wagmi/connectors";
+
+
+const CONTRACT_ADDRESS = "0xA37E4DFE299489f775a316afc665B90F5B0d2fd0" as const;
+
+const ABI = parseAbi([
+  "function click() external",
+  "function getClicks(address) external view returns (uint256)",
+]);
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <Providers>
+      <HomeContent />
+    </Providers>
+  );
+}
+
+function HomeContent() {
+  const { address, isConnected } = useAccount();
+  const { connect, connectors, isPending } = useConnect();
+  const [clicks, setClicks] = useState<bigint>(0n);
+  const [clicking, setClicking] = useState(false);
+
+  const metamask = connectors.find(c => c.id === "injected");
+
+  const { data } = useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: ABI,
+    functionName: "getClicks",
+    args: [address ?? "0x0000000000000000000000000000000000000000"],
+    chainId: base.id,
+  });
+
+  const { writeContract } = useWriteContract();
+
+  useEffect(() => {
+    if (data !== undefined) setClicks(data);
+  }, [data]);
+
+  const handleClick = () => {
+    if (clicking) return;
+    setClicking(true);
+    writeContract({
+      address: CONTRACT_ADDRESS,
+      abi: ABI,
+      functionName: "click",
+      chainId: base.id,
+    });
+    setClicks(prev => prev + 1n);
+    setTimeout(() => setClicking(false), 800);
+  };
+
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-black text-white p-4">
+      <h1 className="text-7xl font-black mb-4">NotBase</h1>
+      <p className="text-2xl mb-12 opacity-80">Mainnet Clicker</p>
+
+      {!isConnected ? (
+        <button
+          onClick={() => metamask && connect({ connector: metamask })}
+          disabled={isPending}
+          className="px-12 py-6 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-2xl text-3xl font-bold shadow-2xl hover:scale-105 active:scale-95 transition-all"
+        >
+          {isPending ? "Connecting…" : "Connect MetaMask"}
+        </button>
+      ) : (
+        <>
+          <div className="text-center mb-12">
+            <p className="text-4xl mb-4">Your click</p>
+            <p className="text-9xl font-black tabular-nums">{clicks.toLocaleString()}</p>
+          </div>
+
+          <button
+            onClick={handleClick}
+            disabled={clicking}
+            className="relative w-96 h-96 rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center text-7xl font-bold"
+          >
+            {clicking ? "⏳" : "Click"}
+            <span className="absolute inset-0 rounded-full animate-ping bg-white opacity-30"></span>
+          </button>
+
+          <p className="mt-12 text-sm opacity-70">
+            Every click is your NotBase token
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+          <p className="text-xs opacity-50">
+            Contract: {CONTRACT_ADDRESS.slice(0, 8)}…{CONTRACT_ADDRESS.slice(-6)}
+          </p>
+        </>
+      )}
+    </main>
   );
 }
