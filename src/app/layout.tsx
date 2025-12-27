@@ -1,9 +1,9 @@
-import type { Metadata } from " next";
+import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "NotBase – Clicker on Base Mainnet",
-  description: "Каждый клик = транзакция в Base",
+  description: "Every click = transaction in Base",
 };
 
 export default function RootLayout({
